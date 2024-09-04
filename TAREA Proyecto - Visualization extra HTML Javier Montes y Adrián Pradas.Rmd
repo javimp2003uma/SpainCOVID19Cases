@@ -1,0 +1,142 @@
+---
+title: "Visualización en pareja casos COVID"
+author: "Javier Montes Pérez y Adrián Pradas Gallardo"
+date: "`r Sys.Date()`"
+output:
+  prettydoc::html_pretty:
+    theme: cayman
+    highlight: github
+vignette: >
+  %\VignetteIndexEntry{Vignette Title}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+En esta tarea, nos corresponde realizar un análisis de un dataset que se encuentra en la carpeta "Datasets" de la asignatura. Concretamente se trata de un conjunto de datos sobre diagnósticos de COVID-19 en regiones distintas de nuestro país. Entre las distintas columnas que presenta el dataset que vamos a analizar, se encuentran: fecha de declaración, territorio, confirmados PCR, hospitalizados, etc.
+
+
+```{r echo=TRUE, results=FALSE, warning=FALSE, message=FALSE}
+# Primero de todo, cargamos las librerías necesarias...
+library(readxl)
+library(dplyr)
+
+library(ggplot2)
+```
+
+En una primera instancia, vamos a crear con R distintos tipos de gráficos que representarán la evolución de los casos confirmados por PCR de COVID-19 en la región de Andalucía en función de la Fecha de declaración de dicho registro. Para ello, haremos uso de la función [ggplot()](https://rpubs.com/daniballari/ggplot), que sirve para realizar gráficos sobre distintas variables de un dataset.
+
+Como hemos comentado al inicio del documento, primero debemos de cargar el dataset de la carpeta correspondiente con la función [read_excel](https://www.rdocumentation.org/packages/readxl/versions/0.1.1/topics/read_excel) pasandole por argumento la ruta, además de cambiar el tipo de datos a Date de su columna "Fecha declaración" para su uso en [ggplot()](https://rpubs.com/daniballari/ggplot). Con [dplyr](https://rpubs.com/joser/dplyr/) conseguimos quedarnos con el dataset perteneciente a la región andaluza ordenado además por la fecha.
+
+
+```{r warning=FALSE}
+cs_export <- read_excel("~/UMA3eroFiles/Laboratorio de Computación Científica/Datasets-20240301/cs_export.xls")
+
+cs_export$`Fecha declaración` <- as.Date(cs_export$`Fecha declaración`, format = "%d/%m/%Y")
+
+Andalucia <- cs_export %>%
+              filter(Territorio == "Andalucía") %>%
+              arrange(`Fecha declaración`)
+```
+
+En primer lugar instanciamos el titulo que tendrá nuestra gráfica, y procedemos a representar el gráfico con [ggplot()](https://rpubs.com/daniballari/ggplot). Sus argumentos serán el dataset de Andalucía creado previamente y con fechas en el eje x y el número de casos confirmados mediante PCR en el eje y. Los colores de las barras representan la cantidad de casos confirmados. Se establece un título y etiquetas para los ejes, y se utiliza un tema minimalista. Además, se rota el texto del eje x para mejorar la legibilidad y se ajusta el formato de la fecha (representando con una frecuencia de 2 días). Finalmente, se utiliza una paleta de colores que va desde amarillo hasta rojo para resaltar la intensidad de los casos confirmados.
+
+
+
+```{r warning=FALSE}
+
+tituloGrafica <- expression(paste("", italic("Evolución de casos confirmados de COVID en Andalucía")))
+
+ggplot(Andalucia, aes(x = `Fecha declaración`, y = `Confirmados PCR`, fill= `Confirmados PCR`)) + geom_bar(stat = "identity") +
+  labs(title = tituloGrafica,
+       x = "Fecha de Declaración",
+       y = "Casos Confirmados (PCR)") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1, size = 6)) +   scale_x_date(date_breaks = "2 days", date_labels = "%d-%m-%Y") +
+  scale_fill_gradient(low = "yellow", high = "red")
+```
+
+El resto de gráficos que vendrá a continuación seguirán un patrón de código similar a este anterior, cambiando los parámetros que añadimos a [ggplot()](https://rpubs.com/daniballari/ggplot).
+
+En este caso, la representación se hace mediante puntos, por lo que a aspectos de código la única diferencia es el segundo argumento de la representación, que en este caso es geom_point() con un size de 2.
+
+
+```{r}
+ggplot(Andalucia, aes(x = `Fecha declaración`, y = `Confirmados PCR`, color= `Confirmados PCR`)) + geom_point(size = 2) +
+  labs(title = tituloGrafica,
+       x = "Fecha de Declaración",
+       y = "Casos Confirmados (PCR)") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1, size = 6)) + 
+  scale_x_date(date_breaks = "2 days", date_labels = "%d-%m-%Y") +
+  scale_color_gradient(low = "yellow", high = "red")
+```
+
+Por último, en este tipo de gráfico usaremos 2 tipos de representaciones a la vez, tanto una línea coloreada mediante un gradiente que va de amarillo a rojo (mediante geom_line()) y con un relleno en su interior (mediante geom_area() con el parámetro de contorno a NA para que se aprecie el anterior gradiente). Además, hemos guardado en una variable previamente el máximo de la representación en "fila_max" para posteriormente introducirlo en el gráfico, mediante [annotate()](https://ggplot2.tidyverse.org/reference/annotate.html).
+
+
+```{r warning = FALSE}
+
+fila_max <- Andalucia[which.max(Andalucia$`Confirmados PCR`), ]
+
+ggplot(Andalucia, aes(x = `Fecha declaración`, y = `Confirmados PCR`, color = `Confirmados PCR`)) + 
+  geom_line(size = 1.5) +
+  geom_area(colour=NA, fill="pink", alpha=.5) +
+  labs(title = tituloGrafica,
+       x = "Fecha de Declaración",
+       y = "Casos Confirmados (PCR)") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust = 1, size = 6)) +
+  scale_x_date(date_breaks = "2 days", date_labels = "%d-%m-%Y") +
+  scale_color_gradient(low = "yellow", high = "red") +
+  annotate("text", x = fila_max$`Fecha declaración`, y = fila_max$`Confirmados PCR`,
+           label = paste("Máximo:", fila_max$`Confirmados PCR`), vjust = 1.1, hjust = -0.2, size = 4, color = "black")
+```
+
+Tal y como se nos pide en el enunciado de la tarea, debemos concluir cuál de los gráficos que hemos escogido representa mejor la evolución de los casos confirmados de COVID-19. Pensamos rotundamente que el mejor es el primero, mediante gráfico de barras, porque representa mejor el tamaño de los atributos representados y el color es mas representativo. Ademàs, es más fácil ver en él la evolución de los datos, ya que por ejemplo en los puntos la disparidad entre ellos es mayor, y en el de linea con área en su interior, se dibujan líneas continuas entre diferentes puntos de la gráfica, que no son verdaderas en la pŕactica.
+
+Se nos pide ahora representar en una misma gráfica más de 2 variables juntas. Para ello, lo que haremos será (como se dice en el enunciado) modificar el valor de los atributos "color", "shape", "fill" o alguno similar. En concreto nosotros lo haremos con este último.
+
+Además, cambiaremos el tema del gráfico haciendo uso de la librería [ggthemes](https://cran.r-project.org/web/packages/ggthemes/index.html).
+
+```{r}
+library(ggthemes)
+
+ggplot(Andalucia, aes(x = `Fecha declaración`, y = `Confirmados PCR`, fill= `UCI`)) + geom_bar(stat = "identity") +
+  labs(title = tituloGrafica,
+       x = "Fecha de Declaración",
+       y = "Casos Confirmados (PCR)") +
+  theme_minimal() +
+  theme_economist() +
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1, size = 6)) +
+  scale_x_date(date_breaks = "2 days", date_labels = "%d-%m-%Y") +
+  scale_fill_gradient(low = "pink", high = "blue")
+```
+
+Como se puede ver en el gráfico, hemos representado la evolución tanto de Confirmados PCR como de ingresados en UCI en función del tiempo. Podemos notar que existe un dato anómalo que es que el máximo de ingresados en UCI no se produjo a la par que el máximo de confirmados por PCR, lo cual a priori no tiene sentido.
+
+
+Por último, para obtener más información acerca del dataset, vamos a representar en un gráfico en función del tiempo, pero esta vez agrupado por semanas, el total de confirmados por PCR, hospitalizados, UCI, curados y defunciones. Para ello, haremos uso de la función de "tidyr" [gather()](https://tidyr.tidyverse.org/reference/gather.html) que se encarga de agrupar los atributos de un dataset en una misma columna, para que posteriormente con [geom_col()](https://rpubs.com/Mentors_Ubiqum/geom_col_1) representemos un gráfico que contiene 5 barras para cada valor de la variable "semana".
+
+```{r}
+library(lubridate)
+library(tidyr)
+
+datosPorSemana <- cs_export %>%
+                  mutate(semana = lubridate::week(`Fecha declaración`)) %>%
+                  group_by(semana) %>%
+                  summarise(total_Confirmados_PCR = sum(`Confirmados PCR`),
+                            total_Hospitalizados = sum(Hospitalizados),
+                            total_UCI = sum(UCI),
+                            total_Curados = sum(Curados),
+                            total_Defunciones = sum(Defunciones))
+
+datosPorSemanaAux <- datosPorSemana %>%
+                      gather(Total, Value, -semana)
+
+ggplot(datosPorSemanaAux, aes(x = semana, y = Value, fill = Total)) +
+  geom_col(position = "dodge") +
+  scale_x_continuous(expand = c(0.00002,0.00002) , breaks = round(seq(min(datosPorSemanaAux$semana), max(datosPorSemanaAux$semana), by = 1), 1)) +
+  scale_y_continuous(breaks = round(seq(min(datosPorSemanaAux$Value), max(datosPorSemanaAux$Value), by = 500), 1))
+```
+
+Como se puede apreciar claramente en el gráfico proyectado justo arriba, existe un progresivo aumentando en cuanto las semanas aumentan a su vez con el total de confirmados, curados, ... y el resto de atributos mostrados. Quizás la variable que más cambio nota en proporción sea el numero total de confirmados mediante PCR, aunque el incremente del total de curados (como es lógico pensar) también fue considerable. Vemos como claramente que a partir de la semana 15 o 16 el decremento de todas las variables se hace mucho más liviano al estar en una etapa de mayor control de la enfermedad por parte de la sanidad de nuestro país.
